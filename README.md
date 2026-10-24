@@ -1,3 +1,12 @@
+
+# My Hackachusetts Project
+
+## Project Demo Video
+
+Watch our project demonstration here:
+
+https://youtu.be/gxUrPGBo5jo 
+
 # KiroBot — Automated Inspection & Sorting Dashboard
 
 A 2D factory-floor simulation built with **plain HTML, CSS, and JavaScript**.
