@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KiroBot — Automated Inspection Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">
+          <span class="bolt">⚙</span>
+        </div>
+        <div class="brand-text">
+          <h1>KiroBot</h1>
+          <p>Automated Part Inspection &amp; Sorting Line</p>
+        </div>
+      </div>
+
+      <div class="status-pill" id="statusPill" data-state="idle">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span class="status-label" id="statusLabel">Idle</span>
+      </div>
+    </header>
+
+    <!-- Main layout -->
+    <main class="layout">
+      <!-- Factory floor -->
+      <section class="floor-panel panel">
+        <div class="panel-head">
+          <h2>Factory Floor</h2>
+          <div class="legend">
+            <span class="legend-item"><i class="swatch good"></i> Pass</span>
+            <span class="legend-item"><i class="swatch bad"></i> Defect</span>
+          </div>
+        </div>
+
+        <!-- Material type legend -->
+        <div class="material-legend" id="materialLegend" aria-label="Plastic material types"></div>
+
+        <div class="canvas-wrap">
+          <canvas id="factory" width="900" height="420" role="img"
+            aria-label="Conveyor belt carrying plastic parts through an inspection sensor to a sorting station"></canvas>
+
+          <!-- Latched emergency-stop overlay (software simulation) -->
+          <div class="estop-banner" id="estopBanner" role="alert" hidden>
+            <div class="estop-banner-inner">
+              <span class="estop-icon">⛔</span>
+              <div>
+                <strong id="estopTitle">EMERGENCY STOP ENGAGED</strong>
+                <span id="estopReason">All simulated motion halted. Clear the E-Stop to reset the line.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls" role="group" aria-label="Line controls">
+          <button class="btn btn-start" id="startBtn">
+            <span class="ico">▶</span> Start
+          </button>
+          <button class="btn btn-pause" id="pauseBtn" disabled>
+            <span class="ico">❚❚</span> Pause
+          </button>
+          <button class="btn btn-reset" id="resetBtn">
+            <span class="ico">⟲</span> Reset
+          </button>
+          <button class="btn btn-demo" id="demoBtn">
+            <span class="ico">▣</span> Demo
+          </button>
+          <button class="btn btn-audio active" id="audioBtn"
+            aria-pressed="true" title="Toggle the audio defect sensor">
+            <span class="ico" id="audioIco">🔊</span> Audio
+          </button>
+
+          <div class="speed-control">
+            <label for="speed">Belt Speed</label>
+            <input type="range" id="speed" min="1" max="10" value="5" />
+          </div>
+        </div>
+
+        <!-- Emergency stop (software simulation, not a safety system) -->
+        <div class="estop-bar" role="group" aria-label="Emergency stop">
+          <button class="estop-btn" id="estopBtn" aria-pressed="false"
+            title="Simulated emergency stop — halts the virtual line">
+            <span class="estop-ring"><span class="estop-core">STOP</span></span>
+          </button>
+          <div class="estop-text">
+            <strong>Emergency Stop</strong>
+            <span>Halts all simulated motion and locks the line until cleared.</span>
+            <span class="estop-disclaimer">
+              ⚠ Software simulation only — this is <em>not</em> a safety system
+              and must not be relied on to protect people or equipment.
+            </span>
+          </div>
+          <button class="btn btn-clear" id="clearBtn" disabled
+            title="Clear the E-Stop and reset the line">
+            <span class="ico">⟲</span> Clear &amp; Reset
+          </button>
+        </div>
+
+        <!-- Sensor & simulation controls -->
+        <div class="sensor-controls" role="group" aria-label="Sensor and simulation controls">
+          <div class="sensor-field">
+            <label for="defectRate">
+              Incoming Defect Rate
+              <span class="field-value" id="defectRateValue">25%</span>
+            </label>
+            <input type="range" id="defectRate" min="0" max="100" step="1" value="25" />
+            <p class="field-hint">Share of parts manufactured defective.</p>
+          </div>
+
+          <div class="sensor-field">
+            <label for="accuracy">
+              Sensor Accuracy
+              <span class="field-value" id="accuracyValue">100%</span>
+            </label>
+            <input type="range" id="accuracy" min="50" max="100" step="1" value="100" />
+            <p class="field-hint">Lower accuracy causes occasional misreads.</p>
+          </div>
+
+          <div class="sensor-field">
+            <label id="modeLabel">Inspection Mode</label>
+            <div class="mode-toggle" role="radiogroup" aria-labelledby="modeLabel">
+              <button type="button" class="mode-btn active" id="modeNormal"
+                role="radio" aria-checked="true" data-mode="normal">
+                Normal
+              </button>
+              <button type="button" class="mode-btn" id="modeHigh"
+                role="radio" aria-checked="false" data-mode="high">
+                High-Speed
+              </button>
+            </div>
+            <p class="field-hint" id="modeHint">Thorough scan dwell for best reliability.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Stats sidebar -->
+      <aside class="stats-panel panel">
+        <div class="panel-head">
+          <h2>Live Metrics</h2>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-card">
+            <span class="stat-icon total">∑</span>
+            <div class="stat-body">
+              <span class="stat-value" id="statTotal">0 / 45</span>
+              <span class="stat-label">Processed / Cap</span>
+            </div>
+          </div>
+
+          <div class="stat-card accepted">
+            <span class="stat-icon ok">✓</span>
+            <div class="stat-body">
+              <span class="stat-value" id="statAccepted">0</span>
+              <span class="stat-label">Accepted</span>
+            </div>
+          </div>
+
+          <div class="stat-card rejected">
+            <span class="stat-icon no">✕</span>
+            <div class="stat-body">
+              <span class="stat-value" id="statRejected">0</span>
+              <span class="stat-label">Rejected</span>
+            </div>
+          </div>
+
+          <div class="stat-card rate">
+            <span class="stat-icon pct">%</span>
+            <div class="stat-body">
+              <span class="stat-value" id="statRate">0.0%</span>
+              <span class="stat-label">Defect Rate</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Propagation rate + throughput progress toward the cap -->
+        <div class="prop-rate" id="propRate">
+          <div class="prop-head">
+            <span class="prop-title">Propagation Rate</span>
+            <span class="prop-value" id="propValue">0 pcs/min</span>
+          </div>
+          <div class="prop-bar" aria-hidden="true">
+            <div class="prop-fill" id="propFill"></div>
+          </div>
+          <p class="prop-note" id="propNote">Throughput toward the 45-piece cap.</p>
+        </div>
+
+        <div class="rate-bar-wrap">
+          <div class="rate-bar-labels">
+            <span>Accepted</span>
+            <span>Rejected</span>
+          </div>
+          <div class="rate-bar" aria-hidden="true">
+            <div class="rate-fill-accepted" id="barAccepted"></div>
+            <div class="rate-fill-rejected" id="barRejected"></div>
+          </div>
+        </div>
+
+        <!-- Simulation quality results -->
+        <div class="panel-head sub">
+          <h2>Simulation Results</h2>
+        </div>
+
+        <div class="stat-grid sim-grid">
+          <div class="stat-card">
+            <span class="stat-icon no">♻</span>
+            <div class="stat-body">
+              <span class="stat-value" id="statMaterialRejected">0</span>
+              <span class="stat-label">Material Rejected</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <span class="stat-icon pct">⚑</span>
+            <div class="stat-body">
+              <span class="stat-value" id="statFalsePos">0</span>
+              <span class="stat-label">False Positives</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <span class="stat-icon no">⚠</span>
+            <div class="stat-body">
+              <span class="stat-value" id="statFalseNeg">0</span>
+              <span class="stat-label">Defects Passed</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <span class="stat-icon ok">↺</span>
+            <div class="stat-body">
+              <span class="stat-value" id="statEscapeRate">0.0%</span>
+              <span class="stat-label">Escape Rate</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Waste reduction indicator -->
+        <div class="waste-indicator" id="wasteIndicator" data-level="none">
+          <div class="waste-head">
+            <span class="waste-title">Waste Reduction</span>
+            <span class="waste-score" id="wasteScore">—</span>
+          </div>
+          <div class="waste-bar" aria-hidden="true">
+            <div class="waste-fill" id="wasteFill"></div>
+          </div>
+          <p class="waste-note" id="wasteNote">
+            Start the line to measure how efficiently material is used.
+          </p>
+        </div>
+
+        <!-- Recycling component: rejected parts are recovered by material -->
+        <div class="recycle" id="recycle" data-level="none">
+          <div class="recycle-head">
+            <span class="recycle-title">♻ Recycling</span>
+            <span class="recycle-score" id="recycleScore">0 g</span>
+          </div>
+          <div class="recycle-bar" aria-hidden="true">
+            <div class="recycle-fill" id="recycleFill"></div>
+          </div>
+          <div class="recycle-breakdown" id="recycleBreakdown"></div>
+          <p class="recycle-note" id="recycleNote">
+            Rejected parts are routed to the recycler and recovered by resin type.
+          </p>
+        </div>
+
+        <div class="panel-head sub">
+          <h2>Inspection Log</h2>
+        </div>
+        <ul class="log" id="log" aria-live="polite">
+          <li class="log-empty">Awaiting first part…</li>
+        </ul>
+
+        <div class="rules-note">
+          <strong>Inspection rules:</strong> A part is truly a
+          <em>defect</em> if it has a cracked body, an off-spec (gray) color,
+          or a malformed shape. The sensor reports PASS/FAIL, but at less than
+          100% accuracy it can misread — rejecting a good part
+          (<em>false positive</em>) or passing a defect (<em>false negative</em>).
+        </div>
+      </aside>
+    </main>
+
+    <footer class="footer">
+      <span>KiroBot v1.0 — runs fully in your browser. No backend, no installs.</span>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
